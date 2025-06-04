@@ -33,18 +33,16 @@ function getEyewearTransform(landmarks: any): {
   const noseTip = landmarks[1]; // tip of the nose
   const leftInnerEye = landmarks[133]; // inner left
   const rightInnerEye = landmarks[362]; // inner right
-  const midwayBetweenEyes = landmarks[168]; // midway between eyes
 
   console.log("leftEye", leftEye);
   console.log("rightEye", rightEye);
   console.log("noseBridge", noseBridge);
   console.log("noseTip", noseTip);
 
-  // Calculate center based on nose bridge and inner eye corners
   const position: [number, number, number] = [
-    (noseBridge.x + leftInnerEye.x + rightInnerEye.x) / 3,
-    (noseBridge.y + leftInnerEye.y + rightInnerEye.y) / 3,
-    (noseBridge.z + leftInnerEye.z + rightInnerEye.z) / 3,
+    (leftInnerEye.x + rightInnerEye.x + noseBridge.x) / 3,
+    (leftInnerEye.y + rightInnerEye.y + noseBridge.y * 1.2) / 3.2,
+    (leftInnerEye.z + rightInnerEye.z + noseBridge.z) / 3, // Average Z
   ];
 
   const dx = rightEye.x - leftEye.x;
@@ -56,14 +54,9 @@ function getEyewearTransform(landmarks: any): {
     noseBridge.y - position[1],
     noseBridge.z - position[2]
   );
-  // const pitch = Math.atan2(
-  //   noseBridge.y - midwayBetweenEyes.y,
-  //   noseBridge.z - midwayBetweenEyes.z
-  // );
 
-  const centerX = (leftEye.x + rightEye.x) / 2;
+  // const centerX = (leftEye.x + rightEye.x) / 2;
 
-  // We can keep the yaw and roll calculations based on eye positions as they are robust for orientation.
   const yaw = Math.atan2(rightEye.z - leftEye.z, rightEye.x - leftEye.x);
   const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
 
@@ -106,8 +99,9 @@ export default function Home() {
         height={dimensions.height}
         modelPath={selectedModel?.path}
         modelTransform={eyewearTransform}
-        scaleFactor={0.19} // Adjusted to make the model smaller
+        scaleFactor={0.1} // Adjusted to make the model smaller - lower is smaller
       />
+
       {/* Model selection slider */}
       <div className="absolute bottom-0 left-0 w-full flex overflow-x-auto bg-black/60 py-3 px-2 gap-3 z-50">
         {AVAILABLE_MODELS.map((model) => (

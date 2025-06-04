@@ -87,13 +87,13 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [modelViewerPosition, setModelViewerPosition] = useState<
-    [number, number, number]
-  >([0.5, 0.5, 0]);
-  const [modelViewerScale, setModelViewerScale] = useState(1);
-  const [modelViewerRotation, setModelViewerRotation] = useState<
-    [number, number, number]
-  >([0, 0, 0]);
+  // const [modelViewerPosition, setModelViewerPosition] = useState<
+  //   [number, number, number]
+  // >([0.5, 0.5, 0]);
+  // const [modelViewerScale, setModelViewerScale] = useState(1);
+  // const [modelViewerRotation, setModelViewerRotation] = useState<
+  //   [number, number, number]
+  // >([0, 0, 0]);
 
   useEffect(() => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -175,7 +175,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
           }
         }
 
-        // Draw face mesh on canvas if needed
+        // Draw face mesh on canvas for DEBUGGING ONLY
         const canvas = canvasRef.current;
         if (canvas) {
           const ctx = canvas.getContext("2d");
@@ -208,7 +208,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
         }
       });
 
-      // Initialize camera
+      // camera init
       const initCamera = async () => {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
@@ -241,7 +241,6 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
 
       initCamera();
 
-      // Cleanup function
       return () => {
         if (videoRef.current?.srcObject) {
           const stream = videoRef.current.srcObject as MediaStream;
@@ -295,7 +294,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
         width={width}
         height={height}
       />
-      {/* Always render the ModelViewer overlay for debugging */}
+      {/* Always render the ModelViewer overlay for DEBUGGING PURPOSES ONLY! */}
       <div
         id="model-viewer-overlay"
         style={{

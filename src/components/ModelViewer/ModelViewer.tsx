@@ -56,22 +56,82 @@ const ModelInternal = ({
       }
       modelRef.current.visible = true;
 
-      // Map normalized position [0,1] to world coordinates
-      // We need to convert from the normalized face mesh coordinates to a 3D position
-      // This mapping depends on your camera's FOV and distance from the face.
-      // Let's assume the face is around Z=0 in world space, and the camera is at Z=5.
-      // We can scale the normalized X and Y based on the Z distance and the canvas size.
-      const worldX = (position[0] - 0.5) * size.width * 0.01; // Scale factor, adjust as needed
-      const worldY = -(position[1] - 0.5) * size.height * 0.01; // Invert Y and scale
-      const worldZ = (position[2] ?? 0) * 5 - 2; // Scale Z and add an offset
+      // Map normalized position [0,1] to world coordinates using camera projection
+      // Create a Vector3 from the normalized position (x, y, and z from landmarks)
+      // Adjust Z to place the model at an appropriate depth relative to the face/camera.
+      // The normalized Z from landmarks is typically relative to the face bounding box, not world units.
+      // We might need to scale or offset it, or ignore it and use a fixed Z or a Z based on eye distance.
 
-      // Use a THREE.Vector3 and .copy for robust positioning
-      const worldPosition = new THREE.Vector3(
-        worldX + offsetX,
-        worldY + offsetY,
-        worldZ + offsetZ
-      );
-      modelRef.current.position.copy(worldPosition);
+      // Let's use the normalized X and Y, and assume a relative Z based on the position[2] landmark Z,
+      // scaled and potentially offset to be in a reasonable range for the 3D scene.
+      // position[2] from the landmarks gives a relative depth. Let's scale it.
+      const landmarkDepth = position[2] ?? 0; // Use landmark Z, default to 0 if null/undefined
+
+      // Convert normalized 2D position (from 0 to 1) to NDC (Normalized Device Coordinates, from -1 to 1)
+      const ndcX = position[0] * 2 - 1;
+      const ndcY = -(position[1] * 2 - 1); // Invert Y for screen coordinates (0,0 top-left) vs NDC (0,0 center)
+
+      // Adjusted mapping: map landmarkDepth (typically centered around 0) to a world Z range (e.g., 0 to 2)
+      // This will need tuning based on observed landmarkDepth values
+      const worldZFromLandmark = 1 - landmarkDepth * 5; // Example: 0 depth -> Z=1, 0.2 depth -> Z=0, -0.2 depth -> Z=2
+
+      // Create a vector in NDC space with the calculated world Z
+      const vector = new THREE.Vector3(ndcX, ndcY, 0); // Start with Z=0 in NDC, will be unprojected
+
+      // Unproject the vector from screen space (NDC) to world space
+      // We need to provide a Z coordinate for the unproject function. This Z is in the range [0, 1], representing the depth within the view frustum.
+      // 0 is the near plane, 1 is the far plane. This is not the same as our worldZFromLandmark.
+      // Let's use the Z coordinate from the position prop directly, assuming it's already somewhat scaled for our scene.
+      // Or, we can use the unproject function's Z parameter to place the point on a specific plane relative to the camera.
+
+      // Let's use the unproject function with a fixed Z (e.g., 0.5, mid-frustum) and then adjust the world Z separately.
+      const vector2D = new THREE.Vector3(ndcX, ndcY, 0.5); // Use 0.5 for Z to unproject onto the mid-plane
+      vector2D.unproject(camera);
+
+      // The unprojected vector's X and Y are now in world space on the Z=0.5 frustum plane.
+      // We need to adjust their depth to be at the desired world Z (worldZFromLandmark).
+      // We can do this by interpolating between the camera position and the unprojected point.
+
+      const cameraPosition = new THREE.Vector3().copy(camera.position);
+      const targetWorldPosition = new THREE.Vector3();
+
+      // Calculate the direction vector from the camera to the unprojected point
+      const direction = new THREE.Vector3()
+        .copy(vector2D)
+        .sub(cameraPosition)
+        .normalize();
+
+      // Calculate the distance along the direction vector to reach the desired worldZFromLandmark
+      // If camera.position.z is different from worldZFromLandmark, we need to find the point on the ray
+      // cameraPosition + t * direction where the Z component is worldZFromLandmark.
+      // cameraPosition.z + t * direction.z = worldZFromLandmark
+      // t = (worldZFromLandmark - cameraPosition.z) / direction.z
+
+      let t = 0;
+      if (direction.z !== 0) {
+        t = (worldZFromLandmark - cameraPosition.z) / direction.z;
+      } else {
+        // If direction.z is 0, the ray is parallel to the XY plane. We might need a different approach or the Z mapping is off.
+        console.warn(
+          "Direction Z is zero, cannot calculate intersection with Z plane."
+        );
+        // Fallback: just use the unprojected X and Y and the calculated worldZFromLandmark
+        targetWorldPosition.copy(vector2D);
+        targetWorldPosition.z = worldZFromLandmark;
+      }
+
+      if (direction.z !== 0) {
+        // Calculate the target world position
+        targetWorldPosition
+          .copy(cameraPosition)
+          .add(direction.multiplyScalar(t));
+      }
+
+      // Apply position using copy, adding offsets
+      modelRef.current.position.copy(targetWorldPosition);
+      modelRef.current.position.x += offsetX;
+      modelRef.current.position.y += offsetY;
+      // modelRef.current.position.z += offsetZ; // offsetZ is already included in targetWorldPosition via worldZFromLandmark mapping
 
       // Apply scale based on eye distance (passed as scale prop) and scaleFactor
       modelRef.current.scale.set(
