@@ -27,14 +27,24 @@ function getEyewearTransform(landmarks: any): {
 } | null {
   if (!landmarks || !Array.isArray(landmarks) || landmarks.length < 468)
     return null;
-  const leftEye = landmarks[33];
-  const rightEye = landmarks[263];
-  const noseBridge = landmarks[6];
+  const leftEye = landmarks[33]; // outer left
+  const rightEye = landmarks[263]; // outer right
+  const noseBridge = landmarks[6]; // top nose bridge
+  const noseTip = landmarks[1]; // tip of the nose
+  const leftInnerEye = landmarks[133]; // inner left
+  const rightInnerEye = landmarks[362]; // inner right
+  const midwayBetweenEyes = landmarks[168]; // midway between eyes
 
-  const center: [number, number, number] = [
-    (leftEye.x + rightEye.x) / 2,
-    (leftEye.y + rightEye.y) / 2,
-    (leftEye.z + rightEye.z) / 2,
+  console.log("leftEye", leftEye);
+  console.log("rightEye", rightEye);
+  console.log("noseBridge", noseBridge);
+  console.log("noseTip", noseTip);
+
+  // Calculate center based on nose bridge and inner eye corners
+  const position: [number, number, number] = [
+    (noseBridge.x + leftInnerEye.x + rightInnerEye.x) / 3,
+    (noseBridge.y + leftInnerEye.y + rightInnerEye.y) / 3,
+    (noseBridge.z + leftInnerEye.z + rightInnerEye.z) / 3,
   ];
 
   const dx = rightEye.x - leftEye.x;
@@ -42,15 +52,31 @@ function getEyewearTransform(landmarks: any): {
   const dz = rightEye.z - leftEye.z;
   const eyeDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-  const eyeY = (leftEye.y + rightEye.y) / 2;
-  const pitchAngle = Math.atan2(noseBridge.y - eyeY, eyeDist);
+  const pitch = Math.atan2(
+    noseBridge.y - position[1],
+    noseBridge.z - position[2]
+  );
+  // const pitch = Math.atan2(
+  //   noseBridge.y - midwayBetweenEyes.y,
+  //   noseBridge.z - midwayBetweenEyes.z
+  // );
 
-  const yawAngle = Math.atan2(dy, dx);
+  const centerX = (leftEye.x + rightEye.x) / 2;
+
+  // We can keep the yaw and roll calculations based on eye positions as they are robust for orientation.
+  const yaw = Math.atan2(rightEye.z - leftEye.z, rightEye.x - leftEye.x);
+  const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+
+  // ! FOR TESTING / DEBUGGING
+  // const pitch = 3 * Math.atan2(noseTip.y - center[1], rightEye.y - leftEye.y);
+  // const yaw = 3 * Math.atan2(rightEye.z - leftEye.z, rightEye.x - leftEye.x);
+
+  console.log("pitch", pitch, "yaw", yaw, "roll", roll);
 
   return {
-    position: center,
-    scale: eyeDist / 0.08,
-    rotation: [pitchAngle, 0, yawAngle],
+    position: position,
+    scale: eyeDist / 0.08, // Scale based on eye distance is still good
+    rotation: [pitch, -yaw, roll], // Apply pitch, yaw, roll
   };
 }
 
@@ -80,9 +106,7 @@ export default function Home() {
         height={dimensions.height}
         modelPath={selectedModel?.path}
         modelTransform={eyewearTransform}
-        // Adjust scaleFactor and offsetY here to fine-tune model size and vertical position
-        scaleFactor={0.3} // Example: makes the model 20% smaller
-        // offsetY={320} // Example: shifts the model down by 10 pixels
+        scaleFactor={0.19} // Adjusted to make the model smaller
       />
       {/* Model selection slider */}
       <div className="absolute bottom-0 left-0 w-full flex overflow-x-auto bg-black/60 py-3 px-2 gap-3 z-50">

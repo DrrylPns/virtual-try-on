@@ -31,21 +31,21 @@ const ModelInternal = ({
 }: Omit<ModelViewerProps, "width" | "height">) => {
   const { scene } = useGLTF(modelPath);
   const modelRef = useRef<THREE.Object3D>(null);
-  const { size, camera } = useThree(); // Get camera from useThree
+  const { size, camera } = useThree();
 
-  // Add screenToWorld function
-  const screenToWorld = (
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ) => {
-    const normalizedX = (x / width) * 2 - 1;
-    const normalizedY = -(y / height) * 2 + 1;
-    const vector = new THREE.Vector3(normalizedX, normalizedY, 0.5); // z = 0.5 (middle of the scene)
-    vector.unproject(camera);
-    return vector;
-  };
+  //   // Add screenToWorld function
+  //   const screenToWorld = (
+  //     x: number,
+  //     y: number,
+  //     width: number,
+  //     height: number
+  //   ) => {
+  //     const normalizedX = (x / width) * 2 - 1;
+  //     const normalizedY = -(y / height) * 2 + 1;
+  //     const vector = new THREE.Vector3(normalizedX, normalizedY, 0.5); // z = 0.5 (middle of the scene)
+  //     vector.unproject(camera);
+  //     return vector;
+  //   };
 
   useFrame(() => {
     if (modelRef.current && size.width > 0 && size.height > 0) {
@@ -54,29 +54,47 @@ const ModelInternal = ({
         modelRef.current.visible = false;
         return;
       }
-
-      // Show the model if it was previously hidden
       modelRef.current.visible = true;
 
-      // Map normalized position to pixel coordinates using actual canvas size
-      const x = position[0] * size.width + offsetX;
-      // Invert Y and apply offset for orthographic camera (0 at bottom, height at top)
-      const y = position[1] * size.height + offsetY;
-      const z = offsetZ; // Use offsetZ for depth adjustment
+      // Map normalized position [0,1] to world coordinates
+      // We need to convert from the normalized face mesh coordinates to a 3D position
+      // This mapping depends on your camera's FOV and distance from the face.
+      // Let's assume the face is around Z=0 in world space, and the camera is at Z=5.
+      // We can scale the normalized X and Y based on the Z distance and the canvas size.
+      const worldX = (position[0] - 0.5) * size.width * 0.01; // Scale factor, adjust as needed
+      const worldY = -(position[1] - 0.5) * size.height * 0.01; // Invert Y and scale
+      const worldZ = (position[2] ?? 0) * 5 - 2; // Scale Z and add an offset
 
-      // Get world position using screenToWorld
-      const worldPosition = screenToWorld(x, y, size.width, size.height);
-
-      // Apply position using copy
+      // Use a THREE.Vector3 and .copy for robust positioning
+      const worldPosition = new THREE.Vector3(
+        worldX + offsetX,
+        worldY + offsetY,
+        worldZ + offsetZ
+      );
       modelRef.current.position.copy(worldPosition);
 
-      // Apply scale and rotation as before
+      // Apply scale based on eye distance (passed as scale prop) and scaleFactor
       modelRef.current.scale.set(
         scale * scaleFactor,
         scale * scaleFactor,
         scale * scaleFactor
       );
-      modelRef.current.rotation.set(rotation[0], rotation[1], rotation[2]);
+
+      // Apply 3D rotation using Euler angles and setRotationFromEuler
+      // Combine face rotation with base rotation for initial alignment
+      const combinedRotation = new THREE.Euler(
+        rotation[0] + baseRotation[0], // pitch + base_pitch
+        rotation[1] + baseRotation[1], // yaw + base_yaw
+        rotation[2] + baseRotation[2], // roll + base_roll
+        "XYZ" // Ensure correct order
+      );
+
+      modelRef.current.setRotationFromEuler(combinedRotation);
+
+      // Debugging logs (keep these for now)
+      console.log("Applied Position:", modelRef.current.position);
+      console.log("Applied Rotation:", modelRef.current.rotation);
+      console.log("Applied Scale:", modelRef.current.scale);
     }
   });
 
@@ -126,15 +144,12 @@ export const ModelViewer: React.FC<
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <Canvas
-        dpr={window.devicePixelRatio} // Use device pixel ratio for better quality
-        orthographic
+        dpr={window.devicePixelRatio}
         camera={{
-          // Camera will be set up by the Resizer component
-          fov: 50, // Typical field of view for a perspective camera
-          near: -750, // Near clipping plane
-          far: 1000, // Far clipping plane
-          zoom: 1,
-          position: [0, 0, 5], // Initial camera position (will be updated)
+          fov: 50,
+          near: 0.1,
+          far: 1000,
+          position: [0, 0, 5],
         }}
         style={{
           background: "transparent",
@@ -150,7 +165,7 @@ export const ModelViewer: React.FC<
         <Suspense fallback={null}>
           {modelPath && <ModelInternal {...props} />}
         </Suspense>
-        <Resizer /> {/* Add the Resizer component here */}
+        <Resizer />
       </Canvas>
     </div>
   );

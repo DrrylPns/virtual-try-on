@@ -203,34 +203,6 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
               ctx.fillStyle = "yellow";
               ctx.fill();
               ctx.restore();
-              console.log(
-                "Canvas width:",
-                canvas.width,
-                "height:",
-                canvas.height,
-                "center between eyes:",
-                centerX,
-                centerY
-              );
-              // Pass the exact normalized value to ModelViewer
-              const normX = (leftEye.x + rightEye.x) / 2;
-              const normY = (leftEye.y + rightEye.y) / 2;
-              setModelViewerPosition([normX, normY, 0]);
-              console.log("ModelViewer normalized position:", normX, normY);
-              console.log(
-                "Face Tracker Calculated Pixel Position (in FaceTracker):",
-                normX * canvas.width,
-                normY * canvas.height
-              );
-              // Calculate scale (distance between eyes)
-              const dx = rightEye.x - leftEye.x;
-              const dy = rightEye.y - leftEye.y;
-              const eyeDist = Math.sqrt(dx * dx + dy * dy);
-              // Use a base scale for your glasses model (tweak as needed)
-              setModelViewerScale(eyeDist * canvas.width * 2.2); // 2.2 is an empirical factor, adjust for your models
-              // Calculate rotation (angle between eyes)
-              const angle = Math.atan2(dy, dx);
-              setModelViewerRotation([0, 0, -angle]); // negative to match screen rotation
             }
           }
         }
@@ -337,11 +309,12 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
       >
         <ModelViewer
           modelPath={modelPath || ""}
-          position={modelViewerPosition}
-          scale={modelViewerScale}
-          rotation={modelViewerRotation}
+          position={modelTransform?.position || [0.5, 0.5, 0]}
+          scale={modelTransform?.scale || 1}
+          rotation={modelTransform?.rotation || [0, 0, 0]}
           scaleFactor={scaleFactor}
           offsetY={offsetY}
+          baseRotation={[Math.PI, Math.PI, 0]}
         />
       </div>
       {!isInitialized && (
