@@ -167,19 +167,40 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
       // camera init
       const initCamera = async () => {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
+          // First try with ideal constraints
+          const constraints = {
             video: {
-              width: width,
-              height: height,
+              width: { ideal: width },
+              height: { ideal: height },
               facingMode: "user",
             },
-          });
+          };
 
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.addEventListener("loadeddata", () => {
-              setIsInitialized(true);
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia(
+              constraints
+            );
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              videoRef.current.addEventListener("loadeddata", () => {
+                setIsInitialized(true);
+              });
+            }
+          } catch (err) {
+            // If ideal constraints fail, try with minimal constraints
+            console.log("Falling back to minimal constraints");
+            const fallbackStream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: "user",
+              },
             });
+
+            // if (videoRef.current) {
+            //   videoRef.current.srcObject = fallbackStream;
+            //   videoRef.current.addEventListener("loadeddata", () => {
+            //     setIsInitialized(true);
+            //   });
+            // }
           }
 
           // Start processing frames
