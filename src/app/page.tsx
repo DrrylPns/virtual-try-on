@@ -11,8 +11,8 @@ interface Model {
 
 const AVAILABLE_MODELS: Model[] = [
   { id: "bennett", name: "Glass", path: "/models/glass-center.glb" },
-  { id: "cove", name: "Cove", path: "/models/Cove/test3.glb" },
-  { id: "elba", name: "Elba", path: "/models/Elba/8.000.glb" },
+  { id: "cove", name: "Cove", path: "/models/model1-center.glb" },
+  { id: "elba", name: "Elba", path: "/models/pandan.glb" },
   { id: "jax", name: "Jax", path: "/models/Jax/5.000.glb" },
   { id: "lana", name: "Lana", path: "/models/Lana/4.000.glb" },
   { id: "leto", name: "Leto", path: "/models/Leto/3.002.glb" },
@@ -34,10 +34,10 @@ function getEyewearTransform(landmarks: any): {
   const leftInnerEye = landmarks[133]; // inner left
   const rightInnerEye = landmarks[362]; // inner right
 
-  console.log("leftEye", leftEye);
-  console.log("rightEye", rightEye);
-  console.log("noseBridge", noseBridge);
-  console.log("noseTip", noseTip);
+  // console.log("leftEye", leftEye);
+  // console.log("rightEye", rightEye);
+  // console.log("noseBridge", noseBridge);
+  // console.log("noseTip", noseTip);
 
   const position: [number, number, number] = [
     (leftInnerEye.x + rightInnerEye.x + noseBridge.x) / 3,
@@ -64,7 +64,7 @@ function getEyewearTransform(landmarks: any): {
   // const pitch = 3 * Math.atan2(noseTip.y - center[1], rightEye.y - leftEye.y);
   // const yaw = 3 * Math.atan2(rightEye.z - leftEye.z, rightEye.x - leftEye.x);
 
-  console.log("pitch", pitch, "yaw", yaw, "roll", roll);
+  // console.log("pitch", pitch, "yaw", yaw, "roll", roll);
 
   return {
     position: position,
@@ -99,7 +99,7 @@ export default function Home() {
         height={dimensions.height}
         modelPath={selectedModel?.path}
         modelTransform={eyewearTransform}
-        scaleFactor={0.09} // Adjusted to make the model smaller - lower is smaller
+        scaleFactor={0.095}
         offsetY={0.05}
       />
 

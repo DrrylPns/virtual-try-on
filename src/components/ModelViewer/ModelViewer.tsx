@@ -8,14 +8,14 @@ import * as THREE from "three";
 
 interface ModelViewerProps {
   modelPath: string;
-  position?: [number, number, number]; // normalized
+  position?: [number, number, number];
   scale?: number;
   rotation?: [number, number, number];
   offsetX?: number;
   offsetY?: number;
   offsetZ?: number;
   scaleFactor?: number;
-  baseRotation?: [number, number, number]; // Add base rotation prop
+  baseRotation?: [number, number, number];
 }
 
 const ModelInternal = ({
@@ -56,41 +56,17 @@ const ModelInternal = ({
       }
       modelRef.current.visible = true;
 
-      // Map normalized position [0,1] to world coordinates using camera projection
-      // Create a Vector3 from the normalized position (x, y, and z from landmarks)
-      // Adjust Z to place the model at an appropriate depth relative to the face/camera.
-      // The normalized Z from landmarks is typically relative to the face bounding box, not world units.
-      // We might need to scale or offset it, or ignore it and use a fixed Z or a Z based on eye distance.
+      const landmarkDepth = position[2] ?? 0;
 
-      // Let's use the normalized X and Y, and assume a relative Z based on the position[2] landmark Z,
-      // scaled and potentially offset to be in a reasonable range for the 3D scene.
-      // position[2] from the landmarks gives a relative depth. Let's scale it.
-      const landmarkDepth = position[2] ?? 0; // Use landmark Z, default to 0 if null/undefined
-
-      // Convert normalized 2D position (from 0 to 1) to NDC (Normalized Device Coordinates, from -1 to 1)
       const ndcX = position[0] * 2 - 1;
-      const ndcY = -(position[1] * 2 - 1); // Invert Y for screen coordinates (0,0 top-left) vs NDC (0,0 center)
+      const ndcY = -(position[1] * 2 - 1);
 
-      // Adjusted mapping: map landmarkDepth (typically centered around 0) to a world Z range (e.g., 0 to 2)
-      // This will need tuning based on observed landmarkDepth values
-      const worldZFromLandmark = 1 - landmarkDepth * 5; // Example: 0 depth -> Z=1, 0.2 depth -> Z=0, -0.2 depth -> Z=2
+      const worldZFromLandmark = 1 - landmarkDepth * 5;
 
-      // Create a vector in NDC space with the calculated world Z
-      const vector = new THREE.Vector3(ndcX, ndcY, 0); // Start with Z=0 in NDC, will be unprojected
+      // const vector = new THREE.Vector3(ndcX, ndcY, 0);
 
-      // Unproject the vector from screen space (NDC) to world space
-      // We need to provide a Z coordinate for the unproject function. This Z is in the range [0, 1], representing the depth within the view frustum.
-      // 0 is the near plane, 1 is the far plane. This is not the same as our worldZFromLandmark.
-      // Let's use the Z coordinate from the position prop directly, assuming it's already somewhat scaled for our scene.
-      // Or, we can use the unproject function's Z parameter to place the point on a specific plane relative to the camera.
-
-      // Let's use the unproject function with a fixed Z (e.g., 0.5, mid-frustum) and then adjust the world Z separately.
-      const vector2D = new THREE.Vector3(ndcX, ndcY, 0.5); // Use 0.5 for Z to unproject onto the mid-plane
+      const vector2D = new THREE.Vector3(ndcX, ndcY, 0.5);
       vector2D.unproject(camera);
-
-      // The unprojected vector's X and Y are now in world space on the Z=0.5 frustum plane.
-      // We need to adjust their depth to be at the desired world Z (worldZFromLandmark).
-      // We can do this by interpolating between the camera position and the unprojected point.
 
       const cameraPosition = new THREE.Vector3().copy(camera.position);
       const targetWorldPosition = new THREE.Vector3();
@@ -101,21 +77,14 @@ const ModelInternal = ({
         .sub(cameraPosition)
         .normalize();
 
-      // Calculate the distance along the direction vector to reach the desired worldZFromLandmark
-      // If camera.position.z is different from worldZFromLandmark, we need to find the point on the ray
-      // cameraPosition + t * direction where the Z component is worldZFromLandmark.
-      // cameraPosition.z + t * direction.z = worldZFromLandmark
-      // t = (worldZFromLandmark - cameraPosition.z) / direction.z
-
       let t = 0;
       if (direction.z !== 0) {
         t = (worldZFromLandmark - cameraPosition.z) / direction.z;
       } else {
-        // If direction.z is 0, the ray is parallel to the XY plane. We might need a different approach or the Z mapping is off.
-        console.warn(
-          "Direction Z is zero, cannot calculate intersection with Z plane."
-        );
-        // Fallback: just use the unprojected X and Y and the calculated worldZFromLandmark
+        // console.warn(
+        //   "Direction Z is zero, cannot calculate intersection with Z plane."
+        // );
+
         targetWorldPosition.copy(vector2D);
         targetWorldPosition.z = worldZFromLandmark;
       }
@@ -127,11 +96,10 @@ const ModelInternal = ({
           .add(direction.multiplyScalar(t));
       }
 
-      // Apply position using copy, adding offsets
+      // Apply position using copy from THREE JS, adding offsets
       modelRef.current.position.copy(targetWorldPosition);
       modelRef.current.position.x += offsetX;
       modelRef.current.position.y += offsetY;
-      // modelRef.current.position.z += offsetZ; // offsetZ is already included in targetWorldPosition via worldZFromLandmark mapping
 
       // Apply scale based on eye distance (passed as scale prop) and scaleFactor
       modelRef.current.scale.set(
@@ -146,15 +114,17 @@ const ModelInternal = ({
         rotation[0] + baseRotation[0], // pitch + base_pitch
         rotation[1] + baseRotation[1], // yaw + base_yaw
         rotation[2] + baseRotation[2], // roll + base_roll
-        "XYZ" // Ensure correct order
+        "XYZ"
       );
 
       modelRef.current.setRotationFromEuler(combinedRotation);
 
-      // Debugging logs (keep these for now)
-      console.log("Applied Position:", modelRef.current.position);
-      console.log("Applied Rotation:", modelRef.current.rotation);
-      console.log("Applied Scale:", modelRef.current.scale);
+      // Debugging logs
+      // console.log("Applied Position:", modelRef.current.position);
+      // console.log("Applied Rotation:", modelRef.current.rotation);
+      // console.log("Applied Scale:", modelRef.current.scale);
+      // console.log("Face Yaw:", faceYaw);
+      // console.log("Clipping Planes:", clippingPlanes);
     }
   });
 
@@ -162,12 +132,12 @@ const ModelInternal = ({
   return <primitive ref={modelRef} object={scene} />;
 };
 
-// New component to handle canvas and camera resizing
+// component to handle canvas and camera resizing
 const Resizer = () => {
-  const { size, gl, camera } = useThree();
+  const { gl, camera } = useThree();
 
   useEffect(() => {
-    const container = gl.domElement.parentElement; // Get the parent div of the canvas
+    const container = gl.domElement.parentElement;
     if (!container) return;
 
     const observer = new ResizeObserver((entries) => {
@@ -191,7 +161,7 @@ const Resizer = () => {
     return () => {
       observer.unobserve(container);
     };
-  }, [gl, camera]); // Dependencies
+  }, [gl, camera]);
 
   return null;
 };
@@ -225,8 +195,8 @@ export const ModelViewer: React.FC<
         gl={{ preserveDrawingBuffer: true }}
         frameloop="always"
       >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} />
+        <ambientLight intensity={3} />
+        <directionalLight position={[10, 10, 5]} intensity={3} />
         <Suspense fallback={null}>
           {modelPath && <ModelInternal {...props} />}
         </Suspense>

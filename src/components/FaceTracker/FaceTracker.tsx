@@ -31,50 +31,6 @@ declare global {
   }
 }
 
-function drawLandmarks(
-  ctx: CanvasRenderingContext2D,
-  landmarks: { x: number; y: number }[],
-  width: number,
-  height: number
-) {
-  ctx.save();
-  ctx.fillStyle = "red";
-  for (const lm of landmarks) {
-    ctx.beginPath();
-    ctx.arc(lm.x * width, lm.y * height, 2, 0, 2 * Math.PI);
-    ctx.fill();
-  }
-
-  // Add debug visualization for glasses position
-  if (landmarks.length >= 468) {
-    const leftEye = landmarks[33];
-    const rightEye = landmarks[263];
-    const centerX = ((leftEye.x + rightEye.x) / 2) * width;
-    const centerY = ((leftEye.y + rightEye.y) / 2) * height;
-
-    // Draw a larger crosshair at the glasses position
-    ctx.strokeStyle = "cyan";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(centerX - 20, centerY);
-    ctx.lineTo(centerX + 20, centerY);
-    ctx.moveTo(centerX, centerY - 20);
-    ctx.lineTo(centerX, centerY + 20);
-    ctx.stroke();
-
-    // Draw a circle showing the scale
-    const dx = rightEye.x - leftEye.x;
-    const dy = rightEye.y - leftEye.y;
-    const eyeDist = Math.sqrt(dx * dx + dy * dy);
-    const scale = eyeDist * width * 2.2;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, scale / 2, 0, 2 * Math.PI);
-    ctx.strokeStyle = "yellow";
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
 export const FaceTracker: React.FC<FaceTrackerProps> = ({
   onFaceLandmarks,
   width = 640,
@@ -167,7 +123,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
           results.multiFaceLandmarks.length > 0
         ) {
           onFaceLandmarks(results.multiFaceLandmarks[0]);
-          console.log("Landmarks:", results.multiFaceLandmarks[0]);
+          // console.log("Landmarks:", results.multiFaceLandmarks[0]); // Keep this line commented for potential future debugging
         } else {
           // When no face is detected, pass null to indicate no landmarks
           if (onFaceLandmarks) {
@@ -186,23 +142,23 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
               results.multiFaceLandmarks &&
               results.multiFaceLandmarks.length > 0
             ) {
-              drawLandmarks(
-                ctx,
-                results.multiFaceLandmarks[0],
-                canvas.width,
-                canvas.height
-              );
-              // Draw a yellow circle at the mapped landmark position (between the eyes)
-              const leftEye = results.multiFaceLandmarks[0][33];
-              const rightEye = results.multiFaceLandmarks[0][263];
-              const centerX = ((leftEye.x + rightEye.x) / 2) * canvas.width;
-              const centerY = ((leftEye.y + rightEye.y) / 2) * canvas.height;
-              ctx.save();
-              ctx.beginPath();
-              ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
-              ctx.fillStyle = "yellow";
-              ctx.fill();
-              ctx.restore();
+              // drawLandmarks( // Keep this commented for potential future debugging
+              //   ctx,
+              //   results.multiFaceLandmarks[0],
+              //   canvas.width,
+              //   canvas.height
+              // );
+              // // Draw a yellow circle at the mapped landmark position (between the eyes) // Keep this commented for potential future debugging
+              // const leftEye = results.multiFaceLandmarks[0][33];
+              // const rightEye = results.multiFaceLandmarks[0][263];
+              // const centerX = ((leftEye.x + rightEye.x) / 2) * canvas.width;
+              // const centerY = ((leftEye.y + rightEye.y) / 2) * canvas.height;
+              // ctx.save();
+              // ctx.beginPath();
+              // ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+              // ctx.fillStyle = "yellow";
+              // ctx.fill();
+              // ctx.restore();
             }
           }
         }
