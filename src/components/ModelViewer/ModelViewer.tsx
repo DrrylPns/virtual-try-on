@@ -54,6 +54,8 @@ const ModelInternal = ({
         modelRef.current.visible = false;
         return;
       }
+
+      // else visible
       modelRef.current.visible = true;
 
       const landmarkDepth = position[2] ?? 0;

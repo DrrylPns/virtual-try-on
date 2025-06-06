@@ -2,23 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { FaceTracker } from "@/components/FaceTracker/FaceTracker";
+import { ModelSelector1 } from "@/components/model-selector";
+import useModelStore from "@/stores/useModelStore";
 
 interface Model {
   id: string;
   name: string;
   path: string;
 }
-
-const AVAILABLE_MODELS: Model[] = [
-  { id: "bennett", name: "Glass", path: "/models/glass-center.glb" },
-  { id: "cove", name: "Cove", path: "/models/model1-center.glb" },
-  { id: "elba", name: "Elba", path: "/models/pandan.glb" },
-  { id: "jax", name: "Jax", path: "/models/Jax/5.000.glb" },
-  { id: "lana", name: "Lana", path: "/models/Lana/4.000.glb" },
-  { id: "leto", name: "Leto", path: "/models/Leto/3.002.glb" },
-  { id: "lindy", name: "Lindy", path: "/models/Lindy/6.003.glb" },
-  { id: "lou", name: "Lou", path: "/models/Lou/7.003.glb" },
-];
 
 function getEyewearTransform(landmarks: any): {
   position: [number, number, number];
@@ -74,9 +65,7 @@ function getEyewearTransform(landmarks: any): {
 }
 
 export default function Home() {
-  const [selectedModel, setSelectedModel] = useState<Model>(
-    AVAILABLE_MODELS[0]
-  );
+  const { selectedModel } = useModelStore();
   const [faceLandmarks, setFaceLandmarks] = useState<any>(null);
   const [dimensions, setDimensions] = useState({ width: 360, height: 640 });
 
@@ -104,7 +93,7 @@ export default function Home() {
       />
 
       {/* Model selection slider */}
-      <div className="absolute bottom-0 left-0 w-full flex overflow-x-auto bg-black/60 py-3 px-2 gap-3 z-50">
+      {/* <div className="absolute bottom-0 left-0 w-full flex overflow-x-auto bg-black/60 py-3 px-2 gap-3 z-50">
         {AVAILABLE_MODELS.map((model) => (
           <button
             key={model.id}
@@ -118,7 +107,9 @@ export default function Home() {
             {model.name}
           </button>
         ))}
-      </div>
+      </div> */}
+
+      <ModelSelector1 />
     </div>
   );
 }
