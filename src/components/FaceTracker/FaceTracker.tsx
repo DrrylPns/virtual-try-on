@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ModelViewer } from "@/components/ModelViewer/ModelViewer";
 import { initMediaPipe } from "@/lib/mediapipe-init";
+import { isMobile, isIOS, isAndroid } from "react-device-detect";
 
 interface FaceLandmark {
   x: number;
@@ -136,9 +137,22 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
       try {
         const constraints = {
           video: {
-            width: { ideal: width },
-            height: { ideal: height },
+            width: isMobile ? { ideal: 1280 } : { ideal: width },
+            height: isMobile ? { ideal: 720 } : { ideal: height },
             facingMode: "user",
+            aspectRatio: isMobile ? { ideal: 0.5625 } : { ideal: 1 },
+
+            ...(isIOS && {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 30 },
+            }),
+
+            ...(isAndroid && {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 30 },
+            }),
           },
         };
 
@@ -158,6 +172,17 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
           stream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: "user",
+              aspectRatio: isMobile ? { ideal: 0.5625 } : { ideal: 1 },
+
+              ...(isIOS && {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              }),
+
+              ...(isAndroid && {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              }),
             },
           });
 
@@ -225,6 +250,8 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
           height: "100%",
           objectFit: "cover",
           zIndex: 1,
+          transform: "scaleX(-1)",
+          objectPosition: "center center",
         }}
         width={width}
         height={height}

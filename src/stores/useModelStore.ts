@@ -1,3 +1,5 @@
+"use client";
+
 import { Variants } from "@/types/types";
 import { create } from "zustand";
 
