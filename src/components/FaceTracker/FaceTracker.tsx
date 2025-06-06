@@ -56,43 +56,8 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
   useEffect(() => {
     if (!videoRef.current || !canvasRef.current) return;
 
-    // Debug: log window and element sizes
-    setTimeout(() => {
-      console.log(
-        "window.innerWidth:",
-        window.innerWidth,
-        "window.innerHeight:",
-        window.innerHeight
-      );
-      if (videoRef.current) {
-        console.log(
-          "video.getBoundingClientRect():",
-          videoRef.current.getBoundingClientRect()
-        );
-      }
-      if (canvasRef.current) {
-        console.log(
-          "canvas.getBoundingClientRect():",
-          canvasRef.current.getBoundingClientRect()
-        );
-      }
-      const modelViewerDiv = document.querySelector("#model-viewer-overlay");
-      if (modelViewerDiv) {
-        console.log(
-          "ModelViewer div getBoundingClientRect():",
-          modelViewerDiv.getBoundingClientRect()
-        );
-      }
-    }, 2000);
-
-    // Log actual dimensions of the overlay div
-    const overlayDiv = document.getElementById("model-viewer-overlay");
-    if (overlayDiv) {
-      console.log(
-        "#model-viewer-overlay client rect:",
-        overlayDiv.getBoundingClientRect()
-      );
-    }
+    let isInitializing = true;
+    let faceMeshInstance: any = null;
 
     const initialize = async () => {
       try {
@@ -100,18 +65,23 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
         await initMediaPipe();
         console.log("MediaPipe script loaded.");
 
+        // Add a longer delay for WASM initialization
         console.log("Waiting for WASM initialization...");
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         console.log("WASM initialization wait finished.");
 
+        if (!isInitializing) return; // Check if component is still mounted
+
         console.log("Creating FaceMesh instance...");
-        faceMeshRef.current = new window.FaceMesh({
+        faceMeshInstance = new window.FaceMesh({
           locateFile: (file: string) => {
             return `/mediapipe/${file}`;
           },
         });
 
-        faceMeshRef.current.setOptions({
+        faceMeshRef.current = faceMeshInstance;
+
+        faceMeshInstance.setOptions({
           maxNumFaces: 1,
           refineLandmarks: true,
           minDetectionConfidence: 0.5,
@@ -119,7 +89,9 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
         });
 
         console.log("Setting up results handler...");
-        faceMeshRef.current.onResults((results: any) => {
+        faceMeshInstance.onResults((results: any) => {
+          if (!isInitializing) return; // Check if component is still mounted
+
           if (
             onFaceLandmarks &&
             results.multiFaceLandmarks &&
@@ -170,35 +142,48 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
           },
         };
 
+        let stream: MediaStream | null = null;
         try {
-          const stream = await navigator.mediaDevices.getUserMedia(constraints);
-          if (videoRef.current) {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (videoRef.current && isInitializing) {
             videoRef.current.srcObject = stream;
             videoRef.current.addEventListener("loadeddata", () => {
-              setIsInitialized(true);
+              if (isInitializing) {
+                setIsInitialized(true);
+              }
             });
           }
         } catch (err) {
           console.log("Falling back to minimal constraints");
-          const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          stream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: "user",
             },
           });
 
-          if (videoRef.current) {
-            videoRef.current.srcObject = fallbackStream;
+          if (videoRef.current && isInitializing) {
+            videoRef.current.srcObject = stream;
             videoRef.current.addEventListener("loadeddata", () => {
-              setIsInitialized(true);
+              if (isInitializing) {
+                setIsInitialized(true);
+              }
             });
           }
         }
 
         const processFrame = async () => {
-          if (videoRef.current && videoRef.current.readyState === 4) {
-            await faceMeshRef.current.send({ image: videoRef.current });
+          if (!isInitializing) return;
+
+          if (
+            videoRef.current &&
+            videoRef.current.readyState === 4 &&
+            faceMeshInstance
+          ) {
+            await faceMeshInstance.send({ image: videoRef.current });
           }
-          requestAnimationFrame(processFrame);
+          if (isInitializing) {
+            requestAnimationFrame(processFrame);
+          }
         };
         processFrame();
       } catch (error) {
@@ -209,12 +194,14 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
     initialize();
 
     return () => {
+      isInitializing = false;
       if (videoRef.current?.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
       }
-      if (faceMeshRef.current) {
-        faceMeshRef.current.close();
+      if (faceMeshInstance) {
+        faceMeshInstance.close();
+        faceMeshRef.current = null;
       }
     };
   }, [onFaceLandmarks, width, height]);
