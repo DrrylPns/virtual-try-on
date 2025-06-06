@@ -107,7 +107,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
         console.log("Creating FaceMesh instance...");
         faceMeshRef.current = new window.FaceMesh({
           locateFile: (file: string) => {
-            return `/mediapipe/${file}`;
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.2/${file}`;
           },
         });
 
