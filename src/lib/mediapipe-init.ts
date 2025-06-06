@@ -1,5 +1,15 @@
 export const initMediaPipe = () => {
   return new Promise<void>((resolve, reject) => {
+    // Ensure this runs only in the browser environment
+    if (typeof window === "undefined") {
+      reject(
+        new Error(
+          "MediaPipe initialization attempted outside of browser environment"
+        )
+      );
+      return;
+    }
+
     if (window.FaceMesh) {
       resolve();
       return;

@@ -96,10 +96,15 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
 
     const initialize = async () => {
       try {
+        console.log("Starting MediaPipe initialization...");
         await initMediaPipe();
+        console.log("MediaPipe script loaded.");
 
+        console.log("Waiting for WASM initialization...");
         await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log("WASM initialization wait finished.");
 
+        console.log("Creating FaceMesh instance...");
         faceMeshRef.current = new window.FaceMesh({
           locateFile: (file: string) => {
             return `/mediapipe/${file}`;
@@ -113,26 +118,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
           minTrackingConfidence: 0.5,
         });
 
-        let retryCount = 0;
-        const maxRetries = 3;
-
-        while (retryCount < maxRetries) {
-          try {
-            await faceMeshRef.current.initialize();
-            console.log("FaceMesh initialized successfully");
-            break;
-          } catch (error) {
-            retryCount++;
-            if (retryCount === maxRetries) {
-              throw error;
-            }
-            console.log(
-              `Retrying FaceMesh initialization (${retryCount}/${maxRetries})...`
-            );
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          }
-        }
-
+        console.log("Setting up results handler...");
         faceMeshRef.current.onResults((results: any) => {
           if (
             onFaceLandmarks &&
@@ -155,8 +141,13 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
             }
           }
         });
+        console.log("Results handler set up.");
 
+        console.log("Initializing camera...");
         await initCamera();
+        console.log("Camera initialized.");
+
+        console.log("Face tracking initialization complete.");
       } catch (error) {
         console.error("Error during initialization:", error);
         if (
