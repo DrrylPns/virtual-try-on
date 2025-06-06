@@ -88,7 +88,7 @@ export default function Home() {
         height={dimensions.height}
         modelPath={selectedModel?.path}
         modelTransform={eyewearTransform}
-        scaleFactor={0.105}
+        scaleFactor={0.115}
         offsetY={0.05}
       />
 
