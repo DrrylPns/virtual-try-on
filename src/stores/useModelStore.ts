@@ -8,9 +8,9 @@ type ModelStore = {
 
 const useModelStore = create<ModelStore>((set) => ({
   selectedModel: {
-    model: "Sample",
-    variant: "Glass A",
-    path: "/models/glass-center.glb",
+    model: "Cove",
+    variant: "Pandan",
+    path: "/rescaled-models/Cove/pandan.glb",
   },
   selectModel: (model: Variants | null) => set({ selectedModel: model }),
 }));

@@ -6,11 +6,11 @@ export const variants = [
   //   variant: "Glass A",
   //   path: "/models/glass-center.glb",
   // },
-  {
-    model: "Sample",
-    variant: "Glass B",
-    path: "/models/model1-center.glb",
-  },
+  // {
+  //   model: "Sample",
+  //   variant: "Glass B",
+  //   path: "/models/model1-center.glb",
+  // },
 
   //Cove
   {
