@@ -1,11 +1,11 @@
 import Sample from "@/../public/glass-center.png";
 
 export const variants = [
-  {
-    model: "Sample",
-    variant: "Glass A",
-    path: "/models/glass-center.glb",
-  },
+  // {
+  //   model: "Sample",
+  //   variant: "Glass A",
+  //   path: "/models/glass-center.glb",
+  // },
   {
     model: "Sample",
     variant: "Glass B",
@@ -207,10 +207,10 @@ export const variants = [
 ];
 
 export const models = [
-  {
-    name: "Sample",
-    image: Sample,
-  },
+  // {
+  //   name: "Sample",
+  //   image: Sample,
+  // },
   {
     name: "Bennett",
     image: Sample,
