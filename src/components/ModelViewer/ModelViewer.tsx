@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useEffect } from "react";
+import { Suspense, useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { OrthographicCamera } from "three";
@@ -200,11 +200,16 @@ export const ModelViewer: React.FC<
   Omit<ModelViewerProps, "width" | "height">
 > = (props) => {
   const { modelPath } = props;
+  const [dpr, setDpr] = useState(1);
+
+  useEffect(() => {
+    setDpr(window.devicePixelRatio);
+  }, []);
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <Canvas
-        dpr={window.devicePixelRatio}
+        dpr={dpr}
         camera={{
           fov: 50,
           near: 0.1,
