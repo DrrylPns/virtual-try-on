@@ -20,47 +20,54 @@ function getEyewearTransform(landmarks: any): {
     return null;
   const leftEye = landmarks[33]; // outer left
   const rightEye = landmarks[263]; // outer right
-  const noseBridge = landmarks[6]; // top nose bridge
   const noseTip = landmarks[1]; // tip of the nose
   const leftInnerEye = landmarks[133]; // inner left
   const rightInnerEye = landmarks[362]; // inner right
 
-  // console.log("leftEye", leftEye);
-  // console.log("rightEye", rightEye);
-  // console.log("noseBridge", noseBridge);
-  // console.log("noseTip", noseTip);
-
   const position: [number, number, number] = [
-    (leftInnerEye.x + rightInnerEye.x + noseBridge.x) / 3,
-    (leftInnerEye.y + rightInnerEye.y + noseBridge.y * 1.2) / 3.2,
-    (leftInnerEye.z + rightInnerEye.z + noseBridge.z) / 3, // Average Z
+    (leftInnerEye.x + rightInnerEye.x + noseTip.x) / 3,
+    (leftInnerEye.y + rightInnerEye.y + noseTip.y * 1.2) / 3.2,
+    (leftInnerEye.z + rightInnerEye.z + noseTip.z) / 2, // Average Z
   ];
+
+  const pitch = Math.atan2(noseTip.y - position[1], noseTip.z - position[2]);
 
   const dx = rightEye.x - leftEye.x;
   const dy = rightEye.y - leftEye.y;
   const dz = rightEye.z - leftEye.z;
   const eyeDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-  const pitch = Math.atan2(
-    noseBridge.y - position[1],
-    noseBridge.z - position[2]
-  );
-
-  // const centerX = (leftEye.x + rightEye.x) / 2;
-
   const yaw = Math.atan2(rightEye.z - leftEye.z, rightEye.x - leftEye.x);
-  const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
 
-  // ! FOR TESTING / DEBUGGING
-  // const pitch = 3 * Math.atan2(noseTip.y - center[1], rightEye.y - leftEye.y);
-  // const yaw = 3 * Math.atan2(rightEye.z - leftEye.z, rightEye.x - leftEye.x);
+  let roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
 
-  // console.log("pitch", pitch, "yaw", yaw, "roll", roll);
+  // Amplify the roll effect
+  roll = roll * 4.0; // Increased the multiplier
+
+  // Adjust roll if it indicates an upside-down orientation (close to +/- PI)
+  // This is a heuristic and might need fine-tuning
+  if (Math.abs(roll) > Math.PI * 0.8) {
+    if (roll > 0) {
+      roll = roll - Math.PI;
+    } else {
+      roll = roll + Math.PI;
+    }
+  }
+
+  // Normalize pitch to be around 3 when looking straight
+  const normalizedPitch = 3 + pitch * 0.1;
+
+  console.log(
+    "Roll Debug - raw:",
+    Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x).toFixed(3),
+    "multiplied:",
+    roll.toFixed(3)
+  );
 
   return {
     position: position,
     scale: eyeDist / 0.082,
-    rotation: [pitch, yaw, -roll], // Removed negative sign from yaw
+    rotation: [normalizedPitch, yaw, -roll],
   };
 }
 
@@ -80,6 +87,33 @@ export default function Home() {
 
   const eyewearTransform = getEyewearTransform(faceLandmarks);
 
+  // Determine offsetY based on the selected model
+  let currentOffsetY = 0.0;
+  switch (selectedModel?.model) {
+    case "Bennett":
+    case "Cove":
+    case "Leto":
+      currentOffsetY = 0.15;
+      break;
+    case "Elba":
+      currentOffsetY = 0.07;
+      break;
+    case "Jax":
+      currentOffsetY = 0.13;
+      break;
+    case "Lana":
+      currentOffsetY = 0.17;
+      break;
+    case "Lindy":
+      currentOffsetY = 0.12;
+      break;
+    case "Lou":
+      currentOffsetY = 0.08;
+      break;
+    default:
+      currentOffsetY = 0.15; // Default value if model is not found or null
+  }
+
   return (
     <div className="fixed inset-0 w-screen h-screen bg-black">
       <FaceTracker
@@ -88,8 +122,8 @@ export default function Home() {
         height={dimensions.height}
         modelPath={selectedModel?.path}
         modelTransform={eyewearTransform}
-        scaleFactor={0.115}
-        offsetY={0.05}
+        scaleFactor={0.11}
+        offsetY={currentOffsetY}
       />
 
       {/* Model selection slider */}

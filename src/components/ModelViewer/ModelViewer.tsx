@@ -49,11 +49,13 @@ const ModelInternal = ({
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
           mesh.material = new THREE.MeshBasicMaterial({
-            colorWrite: false, // Make it visible
+            colorWrite: false, // Make it invisible
             depthWrite: true, // Still write depth
-            color: 0xff0000, // Red color
-            transparent: true, // Enable transparency
-            opacity: 0.5, // Semi-transparent
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.3,
+            depthTest: true,
+            depthFunc: THREE.LessEqualDepth,
           });
         }
       });
@@ -119,7 +121,7 @@ const ModelInternal = ({
       const finalScale = scale * scaleFactor;
       modelRef.current.scale.set(finalScale, finalScale, finalScale);
       if (maskRef.current) {
-        const finalMaskScale = finalScale * maskScale;
+        const finalMaskScale = finalScale * maskScale * 0.9;
         maskRef.current.scale.set(
           finalMaskScale,
           finalMaskScale,
