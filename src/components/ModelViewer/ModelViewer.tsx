@@ -115,7 +115,7 @@ const ModelInternal = ({
         )
       );
       const correctedYaw = rotation[1];
-      const correctedRoll = -rotation[2];
+      const correctedRoll = rotation[2];
       const dynamicQuaternion = new THREE.Quaternion().setFromEuler(
         new THREE.Euler(rotation[0], correctedYaw, correctedRoll, "XYZ")
       );
