@@ -290,6 +290,8 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
           scaleFactor={scaleFactor}
           offsetY={offsetY}
           baseRotation={[0.5, Math.PI, 3.1]}
+          maskScale={1}
+          maskRotation={[0, 0, Math.PI / 4]}
         />
       </div>
       {!isInitialized && (

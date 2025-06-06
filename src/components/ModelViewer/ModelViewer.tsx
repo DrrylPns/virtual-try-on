@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { OrthographicCamera } from "three";
 import * as THREE from "three";
+import gsap from "gsap";
 
 interface ModelViewerProps {
   modelPath: string;
@@ -16,6 +17,8 @@ interface ModelViewerProps {
   offsetZ?: number;
   scaleFactor?: number;
   baseRotation?: [number, number, number];
+  maskScale?: number;
+  maskRotation?: [number, number, number];
 }
 
 const ModelInternal = ({
@@ -28,35 +31,47 @@ const ModelInternal = ({
   offsetZ = 0,
   scaleFactor = 1,
   baseRotation = [0, 0, 0],
+  maskScale = 1,
+  maskRotation = [0, 0, 0],
 }: Omit<ModelViewerProps, "width" | "height">) => {
   const { scene } = useGLTF(modelPath);
   const modelRef = useRef<THREE.Object3D>(null);
   const { size, camera } = useThree();
 
-  //   // Add screenToWorld function
-  //   const screenToWorld = (
-  //     x: number,
-  //     y: number,
-  //     width: number,
-  //     height: number
-  //   ) => {
-  //     const normalizedX = (x / width) * 2 - 1;
-  //     const normalizedY = -(y / height) * 2 + 1;
-  //     const vector = new THREE.Vector3(normalizedX, normalizedY, 0.5); // z = 0.5 (middle of the scene)
-  //     vector.unproject(camera);
-  //     return vector;
-  //   };
+  // Add occlusion mask
+  const { scene: maskScene } = useGLTF("/mask.glb");
+  const maskRef = useRef<THREE.Object3D>(null);
+
+  // Setup occlusion mask material
+  useEffect(() => {
+    if (maskScene) {
+      maskScene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.material = new THREE.MeshBasicMaterial({
+            colorWrite: false, // Make it visible
+            depthWrite: true, // Still write depth
+            color: 0xff0000, // Red color
+            transparent: true, // Enable transparency
+            opacity: 0.5, // Semi-transparent
+          });
+        }
+      });
+    }
+  }, [maskScene]);
 
   useFrame(() => {
     if (modelRef.current && size.width > 0 && size.height > 0) {
       // If position is [0, 0, 0], it means no face is detected, so hide the model
       if (position[0] === 0 && position[1] === 0 && position[2] === 0) {
         modelRef.current.visible = false;
+        if (maskRef.current) maskRef.current.visible = false;
         return;
       }
 
       // else visible
       modelRef.current.visible = true;
+      if (maskRef.current) maskRef.current.visible = true;
 
       const landmarkDepth = position[2] ?? 0;
 
@@ -64,8 +79,6 @@ const ModelInternal = ({
       const ndcY = -(position[1] * 2 - 1);
 
       const worldZFromLandmark = 1 - landmarkDepth * 5;
-
-      // const vector = new THREE.Vector3(ndcX, ndcY, 0);
 
       const vector2D = new THREE.Vector3(ndcX, ndcY, 0.5);
       vector2D.unproject(camera);
@@ -82,10 +95,6 @@ const ModelInternal = ({
       if (direction.z !== 0) {
         t = (worldZFromLandmark - cameraPosition.z) / direction.z;
       } else {
-        // console.warn(
-        //   "Direction Z is zero, cannot calculate intersection with Z plane."
-        // );
-
         targetWorldPosition.copy(vector2D);
         targetWorldPosition.z = worldZFromLandmark;
       }
@@ -96,16 +105,29 @@ const ModelInternal = ({
           .add(direction.multiplyScalar(t));
       }
 
+      // Update model position
       modelRef.current.position.copy(targetWorldPosition);
       modelRef.current.position.x += offsetX;
       modelRef.current.position.y += offsetY;
 
-      modelRef.current.scale.set(
-        scale * scaleFactor,
-        scale * scaleFactor,
-        scale * scaleFactor
-      );
+      // Update mask position to match model
+      if (maskRef.current) {
+        maskRef.current.position.copy(modelRef.current.position);
+      }
 
+      // Apply scale
+      const finalScale = scale * scaleFactor;
+      modelRef.current.scale.set(finalScale, finalScale, finalScale);
+      if (maskRef.current) {
+        const finalMaskScale = finalScale * maskScale;
+        maskRef.current.scale.set(
+          finalMaskScale,
+          finalMaskScale,
+          finalMaskScale
+        );
+      }
+
+      // Apply rotation with GSAP for smooth transitions
       const baseQuaternion = new THREE.Quaternion().setFromEuler(
         new THREE.Euler(
           baseRotation[0],
@@ -114,8 +136,9 @@ const ModelInternal = ({
           "XYZ"
         )
       );
-      const correctedYaw = rotation[1];
-      const correctedRoll = rotation[2];
+
+      const correctedYaw = -rotation[1];
+      const correctedRoll = -rotation[2];
       const dynamicQuaternion = new THREE.Quaternion().setFromEuler(
         new THREE.Euler(rotation[0], correctedYaw, correctedRoll, "XYZ")
       );
@@ -125,19 +148,58 @@ const ModelInternal = ({
         dynamicQuaternion
       );
 
-      modelRef.current.setRotationFromQuaternion(combinedQuaternion);
+      // Smooth rotation transition using GSAP for model
+      gsap.to(modelRef.current.rotation, {
+        x: combinedQuaternion.x,
+        y: combinedQuaternion.y,
+        z: combinedQuaternion.z,
+        duration: 0.1,
+      });
 
-      // Debugging logs
-      // console.log("Applied Position:", modelRef.current.position);
-      // console.log("Applied Rotation:", modelRef.current.rotation);
-      // console.log("Applied Scale:", modelRef.current.scale);
-      // console.log("Face Yaw:", faceYaw);
-      // console.log("Clipping Planes:", clippingPlanes);
+      if (maskRef.current) {
+        // Create separate quaternion for mask rotation
+        const maskBaseQuaternion = new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(
+            baseRotation[0] + maskRotation[0],
+            baseRotation[1] + maskRotation[1],
+            baseRotation[2] + maskRotation[2],
+            "XYZ"
+          )
+        );
+
+        const maskDynamicQuaternion = new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(
+            rotation[0] + maskRotation[0],
+            correctedYaw + maskRotation[1],
+            correctedRoll + maskRotation[2],
+            "XYZ"
+          )
+        );
+
+        const maskCombinedQuaternion =
+          new THREE.Quaternion().multiplyQuaternions(
+            maskBaseQuaternion,
+            maskDynamicQuaternion
+          );
+
+        // Apply separate rotation to mask
+        gsap.to(maskRef.current.rotation, {
+          x: maskCombinedQuaternion.x,
+          y: maskCombinedQuaternion.y,
+          z: maskCombinedQuaternion.z,
+          duration: 0.1,
+        });
+      }
     }
   });
 
   if (!scene) return null;
-  return <primitive ref={modelRef} object={scene} />;
+  return (
+    <>
+      <primitive ref={modelRef} object={scene} />
+      {maskScene && <primitive ref={maskRef} object={maskScene} />}
+    </>
+  );
 };
 
 // component to handle canvas and camera resizing
