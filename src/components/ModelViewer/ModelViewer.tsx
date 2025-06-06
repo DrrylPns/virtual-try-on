@@ -73,7 +73,6 @@ const ModelInternal = ({
       const cameraPosition = new THREE.Vector3().copy(camera.position);
       const targetWorldPosition = new THREE.Vector3();
 
-      // Calculate the direction vector from the camera to the unprojected point
       const direction = new THREE.Vector3()
         .copy(vector2D)
         .sub(cameraPosition)
@@ -92,34 +91,41 @@ const ModelInternal = ({
       }
 
       if (direction.z !== 0) {
-        // Calculate the target world position
         targetWorldPosition
           .copy(cameraPosition)
           .add(direction.multiplyScalar(t));
       }
 
-      // Apply position using copy from THREE JS, adding offsets
       modelRef.current.position.copy(targetWorldPosition);
       modelRef.current.position.x += offsetX;
       modelRef.current.position.y += offsetY;
 
-      // Apply scale based on eye distance (passed as scale prop) and scaleFactor
       modelRef.current.scale.set(
         scale * scaleFactor,
         scale * scaleFactor,
         scale * scaleFactor
       );
 
-      // Apply 3D rotation using Euler angles and setRotationFromEuler
-      // Combine face rotation with base rotation for initial alignment
-      const combinedRotation = new THREE.Euler(
-        rotation[0] + baseRotation[0], // pitch + base_pitch
-        rotation[1] + baseRotation[1], // yaw + base_yaw
-        rotation[2] + baseRotation[2], // roll + base_roll
-        "XYZ"
+      const baseQuaternion = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(
+          baseRotation[0],
+          baseRotation[1],
+          baseRotation[2],
+          "XYZ"
+        )
+      );
+      const correctedYaw = rotation[1];
+      const correctedRoll = -rotation[2];
+      const dynamicQuaternion = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(rotation[0], correctedYaw, correctedRoll, "XYZ")
       );
 
-      modelRef.current.setRotationFromEuler(combinedRotation);
+      const combinedQuaternion = new THREE.Quaternion().multiplyQuaternions(
+        baseQuaternion,
+        dynamicQuaternion
+      );
+
+      modelRef.current.setRotationFromQuaternion(combinedQuaternion);
 
       // Debugging logs
       // console.log("Applied Position:", modelRef.current.position);

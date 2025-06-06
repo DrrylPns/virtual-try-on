@@ -60,7 +60,7 @@ function getEyewearTransform(landmarks: any): {
   return {
     position: position,
     scale: eyeDist / 0.08, // Scale based on eye distance is still good
-    rotation: [pitch, -yaw, roll], // Apply pitch, yaw, roll
+    rotation: [pitch, yaw, roll], // Removed negative sign from yaw
   };
 }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ModelViewer } from "@/components/ModelViewer/ModelViewer";
+import { initMediaPipe } from "@/lib/mediapipe-init";
 
 interface FaceLandmark {
   x: number;
@@ -43,6 +44,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const faceMeshRef = useRef<any>(null);
   // const [modelViewerPosition, setModelViewerPosition] = useState<
   //   [number, number, number]
   // >([0.5, 0.5, 0]);
@@ -92,143 +94,137 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
       );
     }
 
-    // Load MediaPipe FaceMesh script
-    const script = document.createElement("script");
-    script.src = "/mediapipe/face_mesh.js";
-    script.async = true;
-    script.onload = () => {
-      initializeFaceMesh();
-    };
-    document.body.appendChild(script);
+    const initialize = async () => {
+      try {
+        await initMediaPipe();
 
-    const initializeFaceMesh = () => {
-      const faceMesh = new window.FaceMesh({
-        locateFile: (file: string) => {
-          return `/mediapipe/${file}`;
-        },
-      });
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-      faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
+        faceMeshRef.current = new window.FaceMesh({
+          locateFile: (file: string) => {
+            return `/mediapipe/${file}`;
+          },
+        });
 
-      faceMesh.onResults((results: any) => {
-        if (
-          onFaceLandmarks &&
-          results.multiFaceLandmarks &&
-          results.multiFaceLandmarks.length > 0
-        ) {
-          onFaceLandmarks(results.multiFaceLandmarks[0]);
-          // console.log("Landmarks:", results.multiFaceLandmarks[0]); // Keep this line commented for potential future debugging
-        } else {
-          // When no face is detected, pass null to indicate no landmarks
-          if (onFaceLandmarks) {
-            onFaceLandmarks(null);
+        faceMeshRef.current.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (retryCount < maxRetries) {
+          try {
+            await faceMeshRef.current.initialize();
+            console.log("FaceMesh initialized successfully");
+            break;
+          } catch (error) {
+            retryCount++;
+            if (retryCount === maxRetries) {
+              throw error;
+            }
+            console.log(
+              `Retrying FaceMesh initialization (${retryCount}/${maxRetries})...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
         }
 
-        // Draw face mesh on canvas for DEBUGGING ONLY
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-            if (
-              results.multiFaceLandmarks &&
-              results.multiFaceLandmarks.length > 0
-            ) {
-              // drawLandmarks( // Keep this commented for potential future debugging
-              //   ctx,
-              //   results.multiFaceLandmarks[0],
-              //   canvas.width,
-              //   canvas.height
-              // );
-              // // Draw a yellow circle at the mapped landmark position (between the eyes) // Keep this commented for potential future debugging
-              // const leftEye = results.multiFaceLandmarks[0][33];
-              // const rightEye = results.multiFaceLandmarks[0][263];
-              // const centerX = ((leftEye.x + rightEye.x) / 2) * canvas.width;
-              // const centerY = ((leftEye.y + rightEye.y) / 2) * canvas.height;
-              // ctx.save();
-              // ctx.beginPath();
-              // ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
-              // ctx.fillStyle = "yellow";
-              // ctx.fill();
-              // ctx.restore();
+        faceMeshRef.current.onResults((results: any) => {
+          if (
+            onFaceLandmarks &&
+            results.multiFaceLandmarks &&
+            results.multiFaceLandmarks.length > 0
+          ) {
+            onFaceLandmarks(results.multiFaceLandmarks[0]);
+          } else {
+            if (onFaceLandmarks) {
+              onFaceLandmarks(null);
             }
           }
-        }
-      });
 
-      // camera init
-      const initCamera = async () => {
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+            }
+          }
+        });
+
+        await initCamera();
+      } catch (error) {
+        console.error("Error during initialization:", error);
+        if (
+          confirm(
+            "Failed to initialize face tracking. Would you like to reload the page?"
+          )
+        ) {
+          window.location.reload();
+        }
+      }
+    };
+
+    const initCamera = async () => {
+      try {
+        const constraints = {
+          video: {
+            width: { ideal: width },
+            height: { ideal: height },
+            facingMode: "user",
+          },
+        };
+
         try {
-          // First try with ideal constraints
-          const constraints = {
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.addEventListener("loadeddata", () => {
+              setIsInitialized(true);
+            });
+          }
+        } catch (err) {
+          console.log("Falling back to minimal constraints");
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({
             video: {
-              width: { ideal: width },
-              height: { ideal: height },
               facingMode: "user",
             },
-          };
+          });
 
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia(
-              constraints
-            );
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-              videoRef.current.addEventListener("loadeddata", () => {
-                setIsInitialized(true);
-              });
-            }
-          } catch (err) {
-            // If ideal constraints fail, try with minimal constraints
-            console.log("Falling back to minimal constraints");
-            const fallbackStream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                facingMode: "user",
-              },
+          if (videoRef.current) {
+            videoRef.current.srcObject = fallbackStream;
+            videoRef.current.addEventListener("loadeddata", () => {
+              setIsInitialized(true);
             });
-
-            // if (videoRef.current) {
-            //   videoRef.current.srcObject = fallbackStream;
-            //   videoRef.current.addEventListener("loadeddata", () => {
-            //     setIsInitialized(true);
-            //   });
-            // }
           }
-
-          // Start processing frames
-          const processFrame = async () => {
-            if (videoRef.current && videoRef.current.readyState === 4) {
-              await faceMesh.send({ image: videoRef.current });
-            }
-            requestAnimationFrame(processFrame);
-          };
-          processFrame();
-        } catch (error) {
-          console.error("Error accessing camera:", error);
         }
-      };
 
-      initCamera();
-
-      return () => {
-        if (videoRef.current?.srcObject) {
-          const stream = videoRef.current.srcObject as MediaStream;
-          stream.getTracks().forEach((track) => track.stop());
-        }
-        faceMesh.close();
-      };
+        const processFrame = async () => {
+          if (videoRef.current && videoRef.current.readyState === 4) {
+            await faceMeshRef.current.send({ image: videoRef.current });
+          }
+          requestAnimationFrame(processFrame);
+        };
+        processFrame();
+      } catch (error) {
+        console.error("Error accessing camera:", error);
+      }
     };
 
+    initialize();
+
     return () => {
-      // Remove script on cleanup
-      script.remove();
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      if (faceMeshRef.current) {
+        faceMeshRef.current.close();
+      }
     };
   }, [onFaceLandmarks, width, height]);
 
@@ -270,7 +266,6 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
         width={width}
         height={height}
       />
-      {/* Always render the ModelViewer overlay for DEBUGGING PURPOSES ONLY! */}
       <div
         id="model-viewer-overlay"
         style={{
@@ -289,7 +284,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
           rotation={modelTransform?.rotation || [0, 0, 0]}
           scaleFactor={scaleFactor}
           offsetY={offsetY}
-          baseRotation={[Math.PI, Math.PI, 0]}
+          baseRotation={[0.5, Math.PI, 3.1]}
         />
       </div>
       {!isInitialized && (
