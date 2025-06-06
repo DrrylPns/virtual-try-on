@@ -99,7 +99,8 @@ export default function Home() {
         height={dimensions.height}
         modelPath={selectedModel?.path}
         modelTransform={eyewearTransform}
-        scaleFactor={0.1} // Adjusted to make the model smaller - lower is smaller
+        scaleFactor={0.09} // Adjusted to make the model smaller - lower is smaller
+        offsetY={0.05}
       />
 
       {/* Model selection slider */}
