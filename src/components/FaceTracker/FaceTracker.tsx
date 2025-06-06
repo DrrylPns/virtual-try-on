@@ -94,8 +94,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
 
     // Load MediaPipe FaceMesh script
     const script = document.createElement("script");
-    script.src =
-      "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js";
+    script.src = "/mediapipe/face_mesh.js";
     script.async = true;
     script.onload = () => {
       initializeFaceMesh();
@@ -105,7 +104,7 @@ export const FaceTracker: React.FC<FaceTrackerProps> = ({
     const initializeFaceMesh = () => {
       const faceMesh = new window.FaceMesh({
         locateFile: (file: string) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+          return `/mediapipe/${file}`;
         },
       });
 
