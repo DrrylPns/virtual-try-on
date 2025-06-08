@@ -152,7 +152,7 @@ const ModelInternal = ({
 
       // Smooth rotation transition using GSAP for model
       gsap.to(modelRef.current.rotation, {
-        x: combinedQuaternion.x,
+        x: combinedQuaternion.x * -1,
         y: combinedQuaternion.y,
         z: combinedQuaternion.z,
         duration: 0.1,
